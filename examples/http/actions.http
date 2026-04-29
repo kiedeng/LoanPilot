@@ -1,0 +1,23 @@
+### Run a pre-assessment action
+POST http://127.0.0.1:8001/api/actions/pre_assess
+Content-Type: application/json
+
+{
+  "conversation_id": "<conversation_id>",
+  "payload": {
+    "productId": "consumer_loan",
+    "segment": "personal",
+    "amount": 300000
+  }
+}
+
+### Run a prepayment quote action
+POST http://127.0.0.1:8001/api/actions/prepay
+Content-Type: application/json
+
+{
+  "conversation_id": "<conversation_id>",
+  "payload": {
+    "loanId": "LN-DEMO-001"
+  }
+}

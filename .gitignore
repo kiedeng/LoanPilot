@@ -13,8 +13,11 @@ venv/
 # Node / frontend
 node_modules/
 dist/
+build/
 coverage/
 .vite/
+.next/
+.nuxt/
 
 # Environment and local secrets
 .env
@@ -30,12 +33,21 @@ coverage/
 *.sqlite3
 loanpilot.db
 *.log
+uploads/
+tmp/
+temp/
+cache/
+.cache/
+*.tmp
+*.temp
 
 # OS / editor
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
+*.swp
+*.swo
 
 # Codex / local agent state
 .codex

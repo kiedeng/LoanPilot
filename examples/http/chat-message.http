@@ -1,0 +1,15 @@
+### Send a chat message and receive A2UI messages
+POST http://127.0.0.1:8001/api/chat/message
+Content-Type: application/json
+
+{
+  "message": "我想贷20万装修，多久能放款？"
+}
+
+### Compare loan options
+POST http://127.0.0.1:8001/api/chat/message
+Content-Type: application/json
+
+{
+  "message": "对比一下贷款方案"
+}
