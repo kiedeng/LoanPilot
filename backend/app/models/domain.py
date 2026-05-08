@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
@@ -118,6 +120,41 @@ class WorkflowState(Base):
     intent: Mapped[str] = mapped_column(String(80), default="unknown")
     context_json: Mapped[str] = mapped_column(Text, default="{}")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class ResponseCard(Base):
+    __tablename__ = "response_cards"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    conversation_id: Mapped[str] = mapped_column(ForeignKey("conversations.id"))
+    message_id: Mapped[int | None] = mapped_column(ForeignKey("messages.id"), nullable=True)
+    surface_id: Mapped[str] = mapped_column(String(120))
+    card_type: Mapped[str] = mapped_column(String(80), default="a2ui")
+    card_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AiToolCallLog(Base):
+    __tablename__ = "ai_tool_call_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    conversation_id: Mapped[str] = mapped_column(ForeignKey("conversations.id"))
+    dify_conversation_id: Mapped[str] = mapped_column(String(120), default="")
+    tool_name: Mapped[str] = mapped_column(String(120))
+    arguments_json: Mapped[str] = mapped_column(Text, default="{}")
+    result_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AiAction(Base):
+    __tablename__ = "ai_actions"
+
+    id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    conversation_id: Mapped[str] = mapped_column(ForeignKey("conversations.id"))
+    action_type: Mapped[str] = mapped_column(String(120))
+    payload_json: Mapped[str] = mapped_column(Text, default="{}")
+    status: Mapped[str] = mapped_column(String(40), default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class AuditLog(Base):

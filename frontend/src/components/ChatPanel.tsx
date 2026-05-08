@@ -3,10 +3,11 @@ import { MessageProcessor, type A2uiClientAction, type SurfaceModel } from "@a2u
 import { Send, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { loanPilotCatalog } from "../a2ui/loanPilotCatalog";
-import { runAction, sendMessage } from "../api/client";
+import { runAction, sendMessageStream } from "../api/client";
 import type { ChatResponse } from "../types";
 
 type ChatItem = {
+  id?: string;
   role: "user" | "assistant";
   content: string;
   surfaceId?: string;
@@ -83,11 +84,35 @@ export function ChatPanel() {
     const value = text.trim();
     if (!value) return;
     setInput("");
-    setItems((current) => [...current, { role: "user", content: value }]);
+    const assistantId = `assistant-${Date.now()}`;
+    setItems((current) => [...current, { role: "user", content: value }, { id: assistantId, role: "assistant", content: "" }]);
     setLoading(true);
     try {
-      const response = await sendMessage(value, conversationId);
-      processResponse(response);
+      await sendMessageStream(value, conversationId, (event) => {
+        if (event.event === "conversation") {
+          setConversationId(event.data.conversation_id);
+          conversationIdRef.current = event.data.conversation_id;
+          return;
+        }
+        if (event.event === "token") {
+          setItems((current) =>
+            current.map((item) => (item.id === assistantId ? { ...item, content: `${item.content}${event.data.content}` } : item)),
+          );
+          return;
+        }
+        if (event.event === "card") {
+          processorRef.current?.processMessages(event.data.a2ui_messages as never);
+          setItems((current) =>
+            current.map((item) => (item.id === assistantId ? { ...item, surfaceId: event.data.surface_id } : item)),
+          );
+          return;
+        }
+        if (event.event === "error") {
+          setItems((current) =>
+            current.map((item) => (item.id === assistantId ? { ...item, content: event.data.message || "处理失败，请稍后再试。" } : item)),
+          );
+        }
+      });
     } finally {
       setLoading(false);
     }

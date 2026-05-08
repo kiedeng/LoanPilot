@@ -1,6 +1,5 @@
 # LoanPilot
 
-[![CI](https://github.com/kiedeng/LoanPilot/actions/workflows/ci.yml/badge.svg)](https://github.com/kiedeng/LoanPilot/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Frontend](https://img.shields.io/badge/frontend-React%20%2B%20Vite-2f74c0)](frontend/package.json)
 [![Backend](https://img.shields.io/badge/backend-FastAPI-009688)](backend/requirements.txt)
@@ -15,7 +14,7 @@ LoanPilot 是一个银行贷款 AI Agent 开源演示项目。它将对话式贷
 - 覆盖贷款产品推荐、额度预评估、贷款申请、材料收集、还款服务、提前还款试算和人工接管等流程。
 - 使用官方 A2UI v0.9 消息协议，并在前端注册 LoanPilot 自定义 catalog，渲染专业金融科技风业务卡片。
 - 内置金融业务组件：`LoanInsightCard`、`LoanInfoCard`、`LoanComparisonCard`、`LoanApplicationCard`。
-- 工作流当前为确定性演示实现，结构上为后续 LangGraph 编排预留边界。
+- 使用 Dify mock 编排，支持流式响应、意图识别、缺参追问和工具调用式事件。
 - 银行业务能力封装在 Mock adapter 之后，便于未来替换为真实银行系统。
 - 技术栈清晰：FastAPI 后端、React + Vite 前端、SQLAlchemy 数据模型、基础 API 测试。
 
@@ -27,7 +26,7 @@ React + Vite 前端
   -> @a2ui/react A2uiSurface
   -> @a2ui/web_core MessageProcessor
   -> FastAPI 后端
-  -> LoanWorkflow
+  -> AiGateway + MockDifyClient
   -> MockBankingAdapter
   -> SQLite 或配置的 SQLAlchemy 数据库
 ```
@@ -204,7 +203,7 @@ LoanPilot 是演示应用。简单部署方式：
 - 增加前后端契约的类型化 API client。
 - 增加 A2UI 卡片交互的 Playwright 冒烟测试。
 - 增加可选 Docker Compose 开发环境。
-- 在确定性工作流边界后接入真实 LangGraph 编排。
+- 将 MockDifyClient 替换为真实 Dify API 客户端。
 - 增加银行产品、材料、还款系统的 adapter 示例。
 
 ## 贡献指南
