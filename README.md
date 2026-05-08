@@ -1,21 +1,20 @@
 # LoanPilot
 
-[![CI](https://github.com/kiedeng/LoanPilot/actions/workflows/ci.yml/badge.svg)](https://github.com/kiedeng/LoanPilot/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Frontend](https://img.shields.io/badge/frontend-React%20%2B%20Vite-2f74c0)](frontend/package.json)
 [![Backend](https://img.shields.io/badge/backend-FastAPI-009688)](backend/requirements.txt)
 [![Version](https://img.shields.io/badge/version-0.1.0-blue)](CHANGELOG.md)
 
-LoanPilot is an open-source demo of a banking loan AI agent. It combines a conversational loan assistant, FastAPI workflow services, mock banking adapters, SQLite demo data, and A2UI-driven financial cards rendered by a React frontend.
+LoanPilot is an open-source demo of a banking loan AI agent. It combines a conversational loan assistant, a Dify-style AI gateway, mock banking adapters, SQLite demo data, and A2UI-driven financial cards rendered by a React frontend.
 
 [中文文档](README.zh-CN.md)
 
 ## Features
 
-- Conversational loan workflows for product discovery, credit pre-assessment, loan application, document collection, repayment servicing, prepayment quoting, and human handoff.
+- Conversational loan journeys for product discovery, credit pre-assessment, loan application, document collection, repayment servicing, prepayment quoting, and human handoff.
 - Official A2UI v0.9 message flow with a custom LoanPilot frontend catalog for professional fintech-style cards.
 - Finance-specific card components: `LoanInsightCard`, `LoanInfoCard`, `LoanComparisonCard`, and `LoanApplicationCard`.
-- Deterministic workflow service shaped for future LangGraph orchestration.
+- Dify mock orchestration with streaming responses, intent routing, clarification, and tool-call style events.
 - Mock banking adapter boundary for replacing demo data with real bank systems.
 - FastAPI backend, React + Vite frontend, SQLAlchemy models, and focused API tests.
 
@@ -27,7 +26,7 @@ React + Vite frontend
   -> @a2ui/react A2uiSurface
   -> @a2ui/web_core MessageProcessor
   -> FastAPI backend
-  -> LoanWorkflow
+  -> AiGateway + MockDifyClient
   -> MockBankingAdapter
   -> SQLite or configured SQLAlchemy database
 ```
@@ -148,11 +147,11 @@ For the full API schema, run the backend and open `http://127.0.0.1:8001/docs`.
 
 ```text
 LoanPilot/
-  backend/                 FastAPI API, domain models, services, workflows, tests
+  backend/                 FastAPI API, domain models, Dify mock services, tests
   frontend/                React + Vite app and custom A2UI catalog
   docs/                    Architecture, product demo, security and development notes
   examples/                Request examples and integration snippets
-  .github/                 CI workflow, issue templates, PR template
+  .github/                 CI configuration, issue templates, PR template
   README.md                English documentation
   README.zh-CN.md          Chinese documentation
 ```
@@ -185,7 +184,7 @@ cd frontend
 npm run build
 ```
 
-The GitHub Actions workflow runs both checks on pushes and pull requests targeting `main`.
+GitHub Actions runs both checks on pushes and pull requests targeting `main`.
 
 ## Deployment
 
@@ -204,7 +203,7 @@ Do not use the demo mock adapter for production lending decisions.
 - Add typed API clients for frontend-to-backend contracts.
 - Add Playwright smoke tests for A2UI card interactions.
 - Add optional Docker Compose development environment.
-- Add real LangGraph orchestration behind the deterministic workflow boundary.
+- Replace MockDifyClient with a real Dify API client.
 - Add adapter examples for bank product, document, and repayment systems.
 
 ## Contributing

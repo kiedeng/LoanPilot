@@ -1,24 +1,54 @@
+from __future__ import annotations
+
+import json
+from collections.abc import Iterator
+
 from fastapi import APIRouter, Depends, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.adapters.mock_bank import MockBankingAdapter
 from app.db.session import get_db
-from app.schemas.chat import ActionRequest, ChatRequest, ChatResponse
-from app.workflows.loan_graph import LoanWorkflow
+from app.schemas.chat import ActionRequest, ChatRequest, ChatResponse, ChatStreamRequest
+from app.services.ai_gateway import AiGateway
 
 router = APIRouter()
 
 
 @router.post("/chat/message", response_model=ChatResponse)
 def chat_message(request: ChatRequest, db: Session = Depends(get_db)) -> ChatResponse:
-    result = LoanWorkflow(db).handle_message(request.user_id, request.message, request.conversation_id)
-    return ChatResponse(**result.__dict__)
+    stream_request = ChatStreamRequest(
+        conversation_id=request.conversation_id,
+        user_id=request.user_id,
+        message=request.message,
+        client_context={},
+    )
+    return AiGateway(db).chat_message(stream_request)
+
+
+@router.post("/chat/stream")
+def chat_stream(request: ChatStreamRequest, db: Session = Depends(get_db)) -> StreamingResponse:
+    def event_stream() -> Iterator[str]:
+        try:
+            for event_name, payload in AiGateway(db).stream_chat(request):
+                yield f"event: {event_name}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+        except Exception as exc:
+            yield f"event: error\ndata: {json.dumps({'message': str(exc)}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post("/actions/{action_id}", response_model=ChatResponse)
 def run_action(action_id: str, request: ActionRequest, db: Session = Depends(get_db)) -> ChatResponse:
-    result = LoanWorkflow(db).handle_action(request.user_id, request.conversation_id, action_id, request.payload)
-    return ChatResponse(**result.__dict__)
+    return AiGateway(db).handle_action(request.user_id, request.conversation_id, action_id, request.payload)
 
 
 @router.get("/conversations/{conversation_id}")
@@ -72,6 +102,21 @@ def repayment_plan(loan_id: str, db: Session = Depends(get_db)) -> dict:
 @router.get("/loan/bill-summary/{loan_id}")
 def bill_summary(loan_id: str, db: Session = Depends(get_db)) -> dict:
     return MockBankingAdapter(db).query_bill_summary(loan_id)
+
+
+@router.post("/ai/tools/bill-summary")
+def ai_tool_bill_summary(payload: dict, db: Session = Depends(get_db)) -> dict:
+    return MockBankingAdapter(db).query_bill_summary(payload.get("loan_id", "LN-DEMO-001"))
+
+
+@router.post("/ai/tools/application-status")
+def ai_tool_application_status(payload: dict, db: Session = Depends(get_db)) -> dict:
+    return MockBankingAdapter(db).query_application_status(payload.get("application_id", "LP-DEMO-001"))
+
+
+@router.post("/ai/tools/products")
+def ai_tool_products(payload: dict, db: Session = Depends(get_db)) -> list[dict]:
+    return MockBankingAdapter(db).recommend_products(payload.get("query", ""), payload.get("segment", "personal"))
 
 
 @router.post("/loan/prepayment/quote")

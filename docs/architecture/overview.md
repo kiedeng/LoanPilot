@@ -1,6 +1,6 @@
 # LoanPilot Architecture
 
-LoanPilot uses a controlled agent UI architecture. The backend owns workflow and banking state. The frontend owns rendering, interaction, and the visual language of cards.
+LoanPilot uses a controlled agent UI architecture. The backend owns the Dify-style gateway, banking state, and card governance. The frontend owns rendering, interaction, and the visual language of cards.
 
 ```text
 React + Vite frontend
@@ -8,7 +8,7 @@ React + Vite frontend
   -> @a2ui/react A2uiSurface
   -> @a2ui/web_core MessageProcessor
   -> FastAPI backend
-  -> LoanWorkflow
+  -> AiGateway + MockDifyClient
   -> MockBankingAdapter
   -> SQLite or configured SQLAlchemy database
 ```
@@ -35,10 +35,9 @@ This keeps the A2UI protocol declarative while allowing the client to render pro
 The backend is organized around clear boundaries:
 
 - `api/`: HTTP routes and request/response conversion.
-- `workflows/`: deterministic conversation workflow and action handling.
+- `services/`: Dify mock gateway, banking actions, seed data, and audit utilities.
 - `adapters/`: banking capability interfaces and mock implementations.
 - `models/`: SQLAlchemy domain entities.
-- `services/`: seed data and audit utilities.
 - `a2ui/`: A2UI response builders.
 
 ## Bank Integration Boundary
