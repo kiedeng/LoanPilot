@@ -1,24 +1,28 @@
 from __future__ import annotations
 
 import json
+import re
+import time
 from collections.abc import Iterator
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from app.a2ui.builder import (
-    application_surface,
-    assessment_surface,
-    bill_surface,
-    comparison_surface,
-    prepayment_surface,
-    product_surface,
-    repayment_surface,
-    simple_info_surface,
+from app.agent_messages import (
+    application_message,
+    application_status_message,
+    assessment_message,
+    bill_summary_message,
+    comparison_message,
+    info_message,
+    loan_recommendation_message,
+    prepayment_quote_message,
+    repayment_plan_message,
+    text_message,
 )
 from app.adapters.mock_bank import MockBankingAdapter
 from app.models.domain import AiToolCallLog, Conversation, Message, ResponseCard, User, WorkflowState
-from app.schemas.chat import ActionRequest, ChatResponse, ChatStreamRequest, DifyMockRequest
+from app.schemas.chat import ChatResponse, ChatStreamRequest, DifyMockRequest
 from app.services.ai_governance import validate_dify_result
 from app.services.audit import write_audit_log
 from app.services.dify_client import DifyClient, MockDifyClient
@@ -55,7 +59,6 @@ class AiGateway:
                 token = event.get("answer", "")
                 if token:
                     answer_parts.append(token)
-                    yield "token", {"content": token}
             elif event_name == "tool_call":
                 self._save_tool_call(
                     conversation_id,
@@ -74,16 +77,24 @@ class AiGateway:
         valid, reason = validate_dify_result(final_metadata)
         if not valid:
             content = "这个请求暂时不能由 AI 助手处理，我已经为你转人工或保留记录。"
-            assistant_message = self._save_message(conversation_id, "assistant", content, {"governance_error": reason})
+            message = text_message(content, intent="policy_qa", state="blocked", slots={"governance_error": reason})
+            assistant_message = self._save_message(conversation_id, "assistant", message["content"], {"message": message})
             self._save_workflow_state(conversation_id, actual_dify_conversation_id, "blocked", "policy_qa", {})
             write_audit_log(self.db, f"user:{request.user_id}", "chat.blocked", {"conversation_id": conversation_id, "reason": reason})
-            yield "token", {"content": content}
+            yield from self._token_events(message["content"])
+            yield "message", {"message": message}
             yield "done", {"state": "blocked", "intent": "policy_qa", "message_id": assistant_message.id}
             return
 
         content = final_metadata.get("answer") or "".join(answer_parts)
         if final_metadata.get("requires_clarification"):
-            assistant_message = self._save_message(conversation_id, "assistant", content, {"dify": final_metadata})
+            message = text_message(
+                content,
+                intent=final_metadata.get("intent", "policy_qa"),
+                state=final_metadata.get("state", "clarifying"),
+                slots=final_metadata.get("slots", {}),
+            )
+            assistant_message = self._save_message(conversation_id, "assistant", message["content"], {"message": message, "dify": final_metadata})
             self._save_workflow_state(
                 conversation_id,
                 actual_dify_conversation_id,
@@ -92,6 +103,8 @@ class AiGateway:
                 {"dify_managed_slots": final_metadata.get("slots", {})},
             )
             write_audit_log(self.db, f"user:{request.user_id}", "chat.clarification", {"conversation_id": conversation_id})
+            yield from self._token_events(message["content"])
+            yield "message", {"message": message}
             yield "done", {
                 "state": final_metadata.get("state", "clarifying"),
                 "intent": final_metadata.get("intent", "policy_qa"),
@@ -99,15 +112,14 @@ class AiGateway:
             }
             return
 
-        surface_id = f"loanpilot-{uuid4().hex}"
-        a2ui_messages = self._build_a2ui(surface_id, final_metadata)
+        message = self._build_agent_message(final_metadata)
         assistant_message = self._save_message(
             conversation_id,
             "assistant",
-            content,
-            {"surface_id": surface_id, "a2ui_messages": a2ui_messages, "dify": final_metadata},
+            message["content"],
+            {"message": message, "dify": final_metadata},
         )
-        self._save_card(conversation_id, assistant_message.id, surface_id, a2ui_messages)
+        self._save_cards(conversation_id, assistant_message.id, message)
         self._save_workflow_state(
             conversation_id,
             actual_dify_conversation_id,
@@ -122,11 +134,11 @@ class AiGateway:
             {"conversation_id": conversation_id, "dify_conversation_id": actual_dify_conversation_id},
         )
 
-        yield "card", {"surface_id": surface_id, "a2ui_messages": a2ui_messages}
+        yield from self._token_events(message["content"])
+        yield "message", {"message": message}
         yield "done", {
             "state": final_metadata.get("state", "consulting"),
             "intent": final_metadata.get("intent", "policy_qa"),
-            "surface_id": surface_id,
             "message_id": assistant_message.id,
         }
 
@@ -135,41 +147,36 @@ class AiGateway:
         conversation_id = request.conversation_id or ""
         state = "consulting"
         intent = "policy_qa"
-        surface_id = ""
-        a2ui_messages: list[dict] = []
+        messages: list[dict] = []
 
         for event_name, payload in self.stream_chat(request):
             if event_name == "conversation":
                 conversation_id = payload["conversation_id"]
             elif event_name == "token":
                 content_parts.append(payload.get("content", ""))
-            elif event_name == "card":
-                surface_id = payload.get("surface_id", "")
-                a2ui_messages = payload.get("a2ui_messages", [])
+            elif event_name == "message":
+                messages.append(payload["message"])
             elif event_name == "done":
                 state = payload.get("state", state)
                 intent = payload.get("intent", intent)
-                surface_id = payload.get("surface_id", surface_id)
 
         return ChatResponse(
             conversation_id=conversation_id,
             state=state,
             intent=intent,
-            surface_id=surface_id,
-            content="".join(content_parts),
-            a2ui_messages=a2ui_messages,
+            content=messages[-1]["content"] if messages else "".join(content_parts),
+            messages=messages,
         )
 
     def handle_action(self, user_id: int, conversation_id: str, action_id: str, payload: dict) -> ChatResponse:
         self._ensure_conversation(user_id, conversation_id)
-        surface_id = f"loanpilot-{uuid4().hex}"
         segment = payload.get("segment", "personal")
 
         if action_id == "pre_assess":
             assessment = self.bank.pre_assess_credit_limit(
                 {"segment": segment, "requested_amount": payload.get("amount", 200000)}
             )
-            content, a2ui_messages = assessment_surface(surface_id, assessment, payload)
+            message = assessment_message(assessment, payload, intent="pre_assessment", state="pre_assessing")
             state, intent = "pre_assessing", "pre_assessment"
         elif action_id == "apply_now":
             application = self.bank.create_loan_application(
@@ -180,12 +187,11 @@ class AiGateway:
             )
             checklist = self.bank.get_document_checklist(segment, application["applicationId"])
             status = self.bank.query_application_status(application["applicationId"])
-            content, a2ui_messages = application_surface(surface_id, status, checklist)
+            message = application_message(status, checklist, intent="application_creation", state="collecting_materials")
             state, intent = "collecting_materials", "application_creation"
         elif action_id == "upload_document":
             upload = self.bank.upload_document(payload.get("applicationId", "LP-DEMO"), "身份证", "demo-id-card.png")
-            content, a2ui_messages = simple_info_surface(
-                surface_id,
+            message = info_message(
                 "材料上传状态",
                 [
                     f"申请单：{upload['applicationId']}",
@@ -194,36 +200,39 @@ class AiGateway:
                     "下一步：等待银行审批或补充材料通知",
                 ],
                 "材料已模拟上传并完成 OCR 识别。",
+                intent="document_collection",
+                state="under_review",
             )
             state, intent = "under_review", "document_collection"
         elif action_id == "view_repayment_plan":
             plan = self.bank.query_repayment_plan(payload.get("loanId", "LN-DEMO-001"))
-            content, a2ui_messages = repayment_surface(surface_id, plan)
+            message = repayment_plan_message(plan, intent="repayment_query", state="repayment_servicing")
             state, intent = "repayment_servicing", "repayment_query"
         elif action_id == "prepay":
             quote = self.bank.quote_prepayment(payload.get("loanId", "LN-DEMO-001"))
-            content, a2ui_messages = prepayment_surface(surface_id, quote)
+            message = prepayment_quote_message(quote, intent="prepayment_quote", state="prepayment_quoting")
             state, intent = "prepayment_quoting", "prepayment_quote"
         elif action_id == "compare_options":
-            content, a2ui_messages = comparison_surface(surface_id, self.bank.compare_loan_options()["options"])
+            message = comparison_message(self.bank.compare_loan_options()["options"], intent="option_comparison", state="comparing_options")
             state, intent = "comparing_options", "option_comparison"
         else:
             handoff = self.bank.request_human_handoff(f"用户触发动作：{action_id}")
-            content, a2ui_messages = simple_info_surface(
-                surface_id,
+            message = info_message(
                 "人工接管",
                 [f"工单号：{handoff['ticketId']}", "已进入人工服务队列。"],
                 "该动作已转人工处理。",
+                intent="human_handoff",
+                state="human_handoff",
             )
             state, intent = "human_handoff", "human_handoff"
 
         assistant_message = self._save_message(
             conversation_id,
             "assistant",
-            content,
-            {"surface_id": surface_id, "a2ui_messages": a2ui_messages, "action_id": action_id},
+            message["content"],
+            {"message": message, "action_id": action_id},
         )
-        self._save_card(conversation_id, assistant_message.id, surface_id, a2ui_messages)
+        self._save_cards(conversation_id, assistant_message.id, message)
         self._save_workflow_state(conversation_id, self._get_dify_conversation_id(conversation_id), state, intent, {"action_id": action_id})
         write_audit_log(self.db, f"user:{user_id}", f"action.{action_id}", payload)
 
@@ -231,9 +240,8 @@ class AiGateway:
             conversation_id=conversation_id,
             state=state,
             intent=intent,
-            surface_id=surface_id,
-            content=content,
-            a2ui_messages=a2ui_messages,
+            content=message["content"],
+            messages=[message],
         )
 
     def _build_inputs(self, request: ChatStreamRequest, conversation_id: str) -> dict:
@@ -250,22 +258,23 @@ class AiGateway:
             "allowed_tool_scopes": ["loan.read", "bill.read", "application.read"],
         }
 
-    def _build_a2ui(self, surface_id: str, metadata: dict) -> list[dict]:
+    def _build_agent_message(self, metadata: dict) -> dict:
         card = metadata.get("card") or {}
         card_type = card.get("type")
         slots = card.get("slots") or metadata.get("slots") or {}
+        intent = metadata.get("intent", "policy_qa")
+        state = metadata.get("state", "consulting")
 
         if card_type == "bill_summary":
-            return bill_surface(surface_id, self.bank.query_bill_summary(slots.get("loan_id", "LN-DEMO-001")))[1]
+            return bill_summary_message(self.bank.query_bill_summary(slots.get("loan_id", "LN-DEMO-001")), intent=intent, state=state)
         if card_type == "product_recommendation":
             segment = slots.get("segment", "personal")
             products = self.bank.recommend_products(slots.get("query", ""), segment)
-            return product_surface(surface_id, products[0])[1]
+            return loan_recommendation_message(products, intent=intent, state=state, slots=slots)
         if card_type == "application_status":
             status = self.bank.query_application_status(slots.get("application_id", "LP-DEMO-001"))
-            lines = [f"{step['name']}: {step['status']}" for step in status["steps"]]
-            return simple_info_surface(surface_id, "申请进度", lines, "这是当前演示申请的进度。")[1]
-        return simple_info_surface(surface_id, "LoanPilot", [metadata.get("answer", "我可以继续帮你处理贷款问题。")])[1]
+            return application_status_message(status, intent=intent, state=state)
+        return text_message(metadata.get("answer", "我可以继续帮你处理贷款问题。"), intent=intent, state=state, slots=slots)
 
     def _ensure_conversation(self, user_id: int, conversation_id: str) -> None:
         if not self.db.get(Conversation, conversation_id):
@@ -284,17 +293,36 @@ class AiGateway:
         self.db.refresh(message)
         return message
 
-    def _save_card(self, conversation_id: str, message_id: int, surface_id: str, a2ui_messages: list[dict]) -> None:
-        self.db.add(
-            ResponseCard(
-                conversation_id=conversation_id,
-                message_id=message_id,
-                surface_id=surface_id,
-                card_type="a2ui",
-                card_json=json.dumps({"a2ui_messages": a2ui_messages}, ensure_ascii=False),
+    def _save_cards(self, conversation_id: str, message_id: int, message: dict) -> None:
+        for card in message.get("meta_data", {}).get("multi_load", []):
+            self.db.add(
+                ResponseCard(
+                    conversation_id=conversation_id,
+                    message_id=message_id,
+                    surface_id=card.get("source_seq", uuid4().hex),
+                    card_type=card.get("type", "agent_card"),
+                    card_json=json.dumps(card, ensure_ascii=False),
+                )
             )
-        )
         self.db.commit()
+
+    @staticmethod
+    def _visible_content(content: str) -> str:
+        without_placeholders = re.sub(r"\[\([^)]+\)\]", "", content)
+        return re.sub(r"\n{3,}", "\n\n", without_placeholders).strip()
+
+    @staticmethod
+    def _streamable_content(content: str) -> str:
+        first_placeholder = re.search(r"\[\([^)]+\)\]", content)
+        if not first_placeholder:
+            return AiGateway._visible_content(content)
+        return content[: first_placeholder.start()].strip()
+
+    def _token_events(self, content: str) -> Iterator[tuple[str, dict]]:
+        streamable_content = self._streamable_content(content)
+        for index in range(0, len(streamable_content), 6):
+            time.sleep(0.06)
+            yield "token", {"content": streamable_content[index : index + 6]}
 
     def _save_tool_call(self, conversation_id: str, dify_conversation_id: str, tool_name: str, arguments: dict) -> None:
         self.db.add(

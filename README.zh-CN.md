@@ -5,15 +5,15 @@
 [![Backend](https://img.shields.io/badge/backend-FastAPI-009688)](backend/requirements.txt)
 [![Version](https://img.shields.io/badge/version-0.1.0-blue)](CHANGELOG.md)
 
-LoanPilot 是一个银行贷款 AI Agent 开源演示项目。它将对话式贷款助手、FastAPI 工作流服务、Mock 银行业务适配器、SQLite 演示数据，以及基于 A2UI 的金融科技风卡片前端组合在一起。
+LoanPilot 是一个银行贷款 AI Agent 开源演示项目。它将对话式贷款助手、FastAPI 工作流服务、Mock 银行业务适配器、SQLite 演示数据，以及千问式 Agent 消息和 React 业务卡片前端组合在一起。
 
 [English README](README.md)
 
 ## 核心特性
 
 - 覆盖贷款产品推荐、额度预评估、贷款申请、材料收集、还款服务、提前还款试算和人工接管等流程。
-- 使用官方 A2UI v0.9 消息协议，并在前端注册 LoanPilot 自定义 catalog，渲染专业金融科技风业务卡片。
-- 内置金融业务组件：`LoanInsightCard`、`LoanInfoCard`、`LoanComparisonCard`、`LoanApplicationCard`。
+- 使用千问式消息协议：用户可见回答放在 `content`，卡片位置用 `[(source_seq)]`，卡片数据放在 `meta_data.multi_load`。
+- 内置贷款推荐、额度预评估、账单、申请进度、还款计划、提前还款和方案对比等 React 业务卡片。
 - 使用 Dify mock 编排，支持流式响应、意图识别、缺参追问和工具调用式事件。
 - 银行业务能力封装在 Mock adapter 之后，便于未来替换为真实银行系统。
 - 技术栈清晰：FastAPI 后端、React + Vite 前端、SQLAlchemy 数据模型、基础 API 测试。
@@ -22,22 +22,21 @@ LoanPilot 是一个银行贷款 AI Agent 开源演示项目。它将对话式贷
 
 ```text
 React + Vite 前端
-  -> LoanPilot 自定义 A2UI catalog
-  -> @a2ui/react A2uiSurface
-  -> @a2ui/web_core MessageProcessor
+  -> MessageRenderer 解析文本和卡片占位符
+  -> CardRenderer 分发到 React 业务卡片
   -> FastAPI 后端
   -> AiGateway + MockDifyClient
   -> MockBankingAdapter
   -> SQLite 或配置的 SQLAlchemy 数据库
 ```
 
-后端输出 A2UI v0.9 消息：
+后端输出千问式 Agent 消息：
 
-- `createSurface`
-- `updateDataModel`
-- `updateComponents`
+- `content`：用户可见回答，包含 `[(loan_recommend_1)]` 这类卡片占位符。
+- `meta_data.slots`：结构化业务插槽。
+- `meta_data.multi_load`：通过 `source_seq` 和占位符绑定的卡片数据。
 
-前端通过 `MessageProcessor` 处理消息，并使用 `A2uiSurface` 渲染原生 React 业务组件。这样既保持 Agent UI 的声明式协议，又让 LoanPilot 拥有自己的金融科技视觉风格。
+前端解析 `content`，用 `multi_load` 中的业务数据替换占位符，并通过原生 React 业务组件渲染卡片。
 
 ## 环境要求
 
@@ -132,8 +131,8 @@ HTTP 请求示例见 [examples/http](examples/http)。
 
 | Method | Path | 说明 |
 | --- | --- | --- |
-| `POST` | `/api/chat/message` | 发送聊天消息并接收 A2UI 卡片消息。 |
-| `POST` | `/api/actions/{action_id}` | 执行 A2UI 卡片动作。 |
+| `POST` | `/api/chat/message` | 发送聊天消息并接收千问式 Agent 消息。 |
+| `POST` | `/api/actions/{action_id}` | 执行 Agent 卡片动作。 |
 | `GET` | `/api/conversations/{conversation_id}` | 查询会话历史和工作流状态。 |
 | `GET` | `/api/loan/products` | 获取 Mock 贷款产品。 |
 | `POST` | `/api/loan/pre-assess` | 执行 Mock 额度预评估。 |
@@ -148,7 +147,7 @@ HTTP 请求示例见 [examples/http](examples/http)。
 ```text
 LoanPilot/
   backend/                 FastAPI API、领域模型、服务、工作流和测试
-  frontend/                React + Vite 应用和自定义 A2UI catalog
+  frontend/                React + Vite 应用和业务卡片渲染器
   docs/                    架构、产品演示、安全和开发文档
   examples/                请求示例和集成片段
   .github/                 CI、Issue 模板、PR 模板
@@ -201,7 +200,7 @@ LoanPilot 是演示应用。简单部署方式：
 ## 版本计划
 
 - 增加前后端契约的类型化 API client。
-- 增加 A2UI 卡片交互的 Playwright 冒烟测试。
+- 增加 Agent 卡片交互的 Playwright 冒烟测试。
 - 增加可选 Docker Compose 开发环境。
 - 将 MockDifyClient 替换为真实 Dify API 客户端。
 - 增加银行产品、材料、还款系统的 adapter 示例。
@@ -216,7 +215,6 @@ LoanPilot 是演示应用。简单部署方式：
 
 ## 致谢
 
-- [A2UI](https://a2ui.org/) 提供声明式 Agent UI 协议和 React 渲染器。
 - [FastAPI](https://fastapi.tiangolo.com/) 提供后端框架。
 - [React](https://react.dev/) 和 [Vite](https://vite.dev/) 提供前端开发栈。
 - [SQLAlchemy](https://www.sqlalchemy.org/) 提供 ORM 能力。

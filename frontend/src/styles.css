@@ -106,7 +106,21 @@ input {
   text-align: right;
 }
 
-.message > p {
+.agent-message {
+  display: grid;
+  gap: 12px;
+  max-width: 820px;
+}
+
+.message.assistant .agent-message .message-bubble {
+  display: block;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.message-bubble {
   display: inline-block;
   margin: 0 0 10px;
   border-radius: 8px;
@@ -114,9 +128,10 @@ input {
   background: #ffffff;
   box-shadow: 0 1px 2px rgba(18, 32, 51, 0.08);
   line-height: 1.6;
+  white-space: pre-wrap;
 }
 
-.message.user > p {
+.message.user .message-bubble {
   background: #1662b8;
   color: #ffffff;
 }
@@ -134,96 +149,6 @@ input {
   border: 1px solid #0f5fb8;
   background: #0f5fb8;
   color: #ffffff;
-}
-
-.a2ui-card-host {
-  --a2ui-font-family: Inter, "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
-  --a2ui-font-size: 15px;
-  --a2ui-font-scale: 1.18;
-  --a2ui-line-height-headings: 1.15;
-  --a2ui-line-height-body: 1.55;
-  --a2ui-grid-base: 10px;
-  --a2ui-color-primary: #155eef;
-  --a2ui-color-primary-hover: #0f49c7;
-  --a2ui-color-on-primary: #ffffff;
-  --a2ui-color-surface: #ffffff;
-  --a2ui-color-secondary: #eef4ff;
-  --a2ui-color-secondary-hover: #dce9ff;
-  --a2ui-color-on-secondary: #12325f;
-  --a2ui-color-border: #d7e2f0;
-  --a2ui-color-outline: #d7e2f0;
-  --a2ui-color-on-surface: #122033;
-  --a2ui-text-caption-color: #64748b;
-  --a2ui-card-background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-  --a2ui-card-border: 1px solid rgba(144, 163, 184, 0.26);
-  --a2ui-card-border-radius: 8px;
-  --a2ui-card-box-shadow:
-    0 22px 48px rgba(28, 58, 91, 0.14),
-    0 2px 8px rgba(28, 58, 91, 0.06);
-  --a2ui-card-margin: 0;
-  --a2ui-card-padding: 24px;
-  --a2ui-column-gap: 14px;
-  --a2ui-row-gap: 14px;
-  --a2ui-list-gap: 12px;
-  --a2ui-divider-spacing: 4px;
-  --a2ui-border-width: 1px;
-  --a2ui-button-margin: 0;
-  --a2ui-button-padding: 10px 14px;
-  --a2ui-button-border-radius: 8px;
-  --a2ui-button-border: 1px solid #cbd8e8;
-  --a2ui-button-font-weight: 650;
-  --a2ui-button-box-shadow: 0 1px 2px rgba(18, 32, 51, 0.08);
-  max-width: 820px;
-  margin: 8px 0 14px;
-}
-
-.a2ui-card-host .a2ui-surface {
-  border-radius: 8px;
-  overflow: visible;
-}
-
-.a2ui-card-host button {
-  border-radius: 8px;
-  cursor: pointer;
-  min-height: 40px;
-  transition:
-    transform 160ms ease,
-    box-shadow 160ms ease,
-    background-color 160ms ease,
-    border-color 160ms ease;
-}
-
-.a2ui-card-host button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(15, 95, 184, 0.12);
-}
-
-.a2ui-card-host button:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(18, 32, 51, 0.08);
-}
-
-.a2ui-card-host :where(h1, h2, h3, h4, p) {
-  letter-spacing: 0;
-}
-
-.a2ui-card-host :where(h1) {
-  color: #0f3b75;
-  font-weight: 760;
-}
-
-.a2ui-card-host :where(h3) {
-  color: #102946;
-  font-weight: 720;
-}
-
-.a2ui-card-host :where(h4) {
-  color: #163b66;
-  font-weight: 700;
-}
-
-.a2ui-card-host :where(p) {
-  color: #334155;
 }
 
 .loan-insight-card {
@@ -390,6 +315,7 @@ input {
 
 .loan-info-card,
 .loan-comparison-card,
+.loan-recommendation-feed,
 .loan-application-card {
   width: min(820px, 100%);
   border-radius: 8px;
@@ -397,6 +323,136 @@ input {
   box-shadow:
     0 22px 48px rgba(23, 43, 77, 0.14),
     0 2px 8px rgba(23, 43, 77, 0.07);
+}
+
+.loan-recommendation-feed {
+  padding: 22px;
+  border: 1px solid rgba(15, 95, 184, 0.18);
+  background:
+    linear-gradient(135deg, rgba(21, 94, 239, 0.08), rgba(0, 168, 143, 0.06) 48%, transparent),
+    #ffffff;
+}
+
+.loan-recommendation-feed__header {
+  display: grid;
+  gap: 7px;
+}
+
+.loan-recommendation-feed__header span,
+.loan-recommendation-feed__items header span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: 0;
+}
+
+.loan-recommendation-feed__header h3 {
+  margin: 0;
+  color: #0f2742;
+  font-size: 22px;
+  line-height: 1.18;
+}
+
+.loan-recommendation-feed__header p,
+.loan-recommendation-feed__items p {
+  margin: 0;
+  color: #405166;
+  line-height: 1.55;
+}
+
+.loan-recommendation-feed__items {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.loan-recommendation-feed__items > article {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.loan-recommendation-feed__items > article.featured {
+  border-color: rgba(21, 94, 239, 0.38);
+  background:
+    linear-gradient(180deg, rgba(21, 94, 239, 0.07), transparent),
+    #ffffff;
+}
+
+.loan-recommendation-feed__items h4 {
+  margin: 4px 0 0;
+  color: #12345c;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.loan-recommendation-feed__items dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.loan-recommendation-feed__items dl div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  background: #f8fbfd;
+}
+
+.loan-recommendation-feed__items dt {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.loan-recommendation-feed__items dd {
+  margin: 0;
+  color: #17375f;
+  font-size: 14px;
+  font-weight: 760;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.loan-recommendation-feed__items footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.loan-recommendation-feed__items button {
+  min-height: 40px;
+  border: 1px solid #c9d6e6;
+  border-radius: 8px;
+  padding: 9px 14px;
+  background: #ffffff;
+  color: #14345a;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.loan-recommendation-feed__items button.primary {
+  border-color: #155eef;
+  background: #155eef;
+  color: #ffffff;
+}
+
+.loan-recommendation-feed__notice {
+  margin: 16px 0 0;
+  border-left: 3px solid #00a88f;
+  padding: 9px 12px;
+  border-radius: 0 8px 8px 0;
+  background: rgba(232, 247, 243, 0.76);
+  color: #375168;
+  line-height: 1.5;
 }
 
 .loan-info-card {
@@ -705,17 +761,6 @@ pre {
     padding: 18px;
   }
 
-  .a2ui-card-host {
-    --a2ui-card-padding: 18px;
-    --a2ui-row-gap: 10px;
-    --a2ui-column-gap: 12px;
-    max-width: 100%;
-  }
-
-  .a2ui-card-host button {
-    width: 100%;
-  }
-
   .loan-insight-card {
     padding: 18px;
   }
@@ -730,6 +775,18 @@ pre {
 
   .loan-insight-card__rows div {
     grid-template-columns: 1fr;
+  }
+
+  .loan-recommendation-feed {
+    padding: 18px;
+  }
+
+  .loan-recommendation-feed__items dl {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .loan-recommendation-feed__items button {
+    flex: 1 1 140px;
   }
 
 }

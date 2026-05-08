@@ -129,7 +129,7 @@ class ResponseCard(Base):
     conversation_id: Mapped[str] = mapped_column(ForeignKey("conversations.id"))
     message_id: Mapped[int | None] = mapped_column(ForeignKey("messages.id"), nullable=True)
     surface_id: Mapped[str] = mapped_column(String(120))
-    card_type: Mapped[str] = mapped_column(String(80), default="a2ui")
+    card_type: Mapped[str] = mapped_column(String(80), default="agent_card")
     card_json: Mapped[str] = mapped_column(Text, default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

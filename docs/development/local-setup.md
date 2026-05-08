@@ -31,9 +31,9 @@ cd frontend && npm run build
 
 Use a local origin such as `http://localhost:5173` or `http://127.0.0.1:5173`. The backend allows local development origins.
 
-### Unknown A2UI component
+### Unknown card type
 
-Restart the frontend dev server after adding custom catalog components. A stale Vite process can keep an old catalog in memory.
+Restart the frontend dev server after adding new card renderer components. A stale Vite process can keep an old module graph in memory.
 
 ### Port already in use
 

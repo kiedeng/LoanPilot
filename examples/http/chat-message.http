@@ -1,4 +1,4 @@
-### Send a chat message and receive A2UI messages
+### Send a chat message and receive agent messages
 POST http://127.0.0.1:8001/api/chat/message
 Content-Type: application/json
 

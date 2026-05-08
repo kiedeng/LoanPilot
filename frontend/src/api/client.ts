@@ -67,12 +67,11 @@ export async function runAction(
   actionId: string,
   conversationId: string,
   payload?: Record<string, unknown>,
-  surfaceId?: string,
 ): Promise<ChatResponse> {
   const response = await fetch(`${API_BASE}/actions/${actionId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ conversation_id: conversationId, surface_id: surfaceId, payload: payload ?? {} }),
+    body: JSON.stringify({ conversation_id: conversationId, payload: payload ?? {} }),
   });
   if (!response.ok) {
     throw new Error("Failed to run action");

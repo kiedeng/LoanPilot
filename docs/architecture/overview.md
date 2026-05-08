@@ -4,31 +4,34 @@ LoanPilot uses a controlled agent UI architecture. The backend owns the Dify-sty
 
 ```text
 React + Vite frontend
-  -> LoanPilot custom A2UI catalog
-  -> @a2ui/react A2uiSurface
-  -> @a2ui/web_core MessageProcessor
+  -> MessageRenderer parses content and placeholders
+  -> CardRenderer dispatches to React business cards
   -> FastAPI backend
   -> AiGateway + MockDifyClient
   -> MockBankingAdapter
   -> SQLite or configured SQLAlchemy database
 ```
 
-## A2UI Message Flow
+## Agent Message Flow
 
-The backend emits official A2UI v0.9 messages:
+The backend emits Qwen-style agent messages:
 
-- `createSurface`: creates a surface using the LoanPilot catalog ID.
-- `updateDataModel`: attaches structured business data to the surface.
-- `updateComponents`: declares the root custom card component and its props.
+- `content`: assistant-visible text with placeholders such as `[(loan_recommend_1)]`.
+- `meta_data.intent_data`: intent and workflow state.
+- `meta_data.slots`: structured business slots such as amount, purpose, segment, loan ID, or application ID.
+- `meta_data.multi_load`: business card payloads keyed by `source_seq`.
 
-The frontend registers a custom catalog at `https://loanpilot.local/a2ui/catalog/v1`. It includes the official basic components plus LoanPilot-specific business components:
+The frontend parses `content`, replaces each placeholder with the matching `multi_load` entry, and renders the card with native React business components:
 
-- `LoanInsightCard`: product, credit assessment, bill, and prepayment summary cards.
-- `LoanInfoCard`: policy, progress, repayment schedule, renewal, upload, and handoff cards.
-- `LoanComparisonCard`: loan option comparison matrix.
-- `LoanApplicationCard`: application status and document checklist.
+- `loan_recommend`: product recommendations.
+- `assessment_result`: credit pre-assessment result.
+- `bill_summary`: current bill summary.
+- `application_status`: application status and document checklist.
+- `repayment_plan`: repayment schedule.
+- `prepayment_quote`: early repayment quote.
+- `loan_comparison`: option comparison.
 
-This keeps the A2UI protocol declarative while allowing the client to render professional fintech-style native React components.
+This keeps the backend focused on business data and lets the frontend own layout, interaction, responsive behavior, and visual polish.
 
 ## Backend Boundaries
 
@@ -38,7 +41,7 @@ The backend is organized around clear boundaries:
 - `services/`: Dify mock gateway, banking actions, seed data, and audit utilities.
 - `adapters/`: banking capability interfaces and mock implementations.
 - `models/`: SQLAlchemy domain entities.
-- `a2ui/`: A2UI response builders.
+- `agent_messages.py`: Qwen-style message and business card builders.
 
 ## Bank Integration Boundary
 

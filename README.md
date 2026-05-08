@@ -5,15 +5,15 @@
 [![Backend](https://img.shields.io/badge/backend-FastAPI-009688)](backend/requirements.txt)
 [![Version](https://img.shields.io/badge/version-0.1.0-blue)](CHANGELOG.md)
 
-LoanPilot is an open-source demo of a banking loan AI agent. It combines a conversational loan assistant, a Dify-style AI gateway, mock banking adapters, SQLite demo data, and A2UI-driven financial cards rendered by a React frontend.
+LoanPilot is an open-source demo of a banking loan AI agent. It combines a conversational loan assistant, a Dify-style AI gateway, mock banking adapters, SQLite demo data, and Qwen-style agent messages rendered by React business cards.
 
 [中文文档](README.zh-CN.md)
 
 ## Features
 
 - Conversational loan journeys for product discovery, credit pre-assessment, loan application, document collection, repayment servicing, prepayment quoting, and human handoff.
-- Official A2UI v0.9 message flow with a custom LoanPilot frontend catalog for professional fintech-style cards.
-- Finance-specific card components: `LoanInsightCard`, `LoanInfoCard`, `LoanComparisonCard`, and `LoanApplicationCard`.
+- Qwen-style message flow with visible assistant content, `[(source_seq)]` card placeholders, and `meta_data.multi_load` card payloads.
+- Finance-specific React card components for recommendations, assessment, bills, applications, repayment plans, prepayment quotes, and comparisons.
 - Dify mock orchestration with streaming responses, intent routing, clarification, and tool-call style events.
 - Mock banking adapter boundary for replacing demo data with real bank systems.
 - FastAPI backend, React + Vite frontend, SQLAlchemy models, and focused API tests.
@@ -22,22 +22,21 @@ LoanPilot is an open-source demo of a banking loan AI agent. It combines a conve
 
 ```text
 React + Vite frontend
-  -> LoanPilot custom A2UI catalog
-  -> @a2ui/react A2uiSurface
-  -> @a2ui/web_core MessageProcessor
+  -> MessageRenderer parses content and card placeholders
+  -> CardRenderer dispatches to React business cards
   -> FastAPI backend
   -> AiGateway + MockDifyClient
   -> MockBankingAdapter
   -> SQLite or configured SQLAlchemy database
 ```
 
-The backend emits A2UI v0.9 messages:
+The backend emits Qwen-style agent messages:
 
-- `createSurface`
-- `updateDataModel`
-- `updateComponents`
+- `content`: assistant-visible text with placeholders such as `[(loan_recommend_1)]`.
+- `meta_data.slots`: structured business slots.
+- `meta_data.multi_load`: card payloads keyed by `source_seq`.
 
-The frontend processes those messages with `MessageProcessor` and renders native React components through `A2uiSurface`. This keeps UI generation declarative while allowing LoanPilot to own the fintech visual language.
+The frontend parses the message content, replaces placeholders with matching cards from `multi_load`, and renders them with native React business components.
 
 ## Requirements
 
@@ -132,8 +131,8 @@ Main endpoints:
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `POST` | `/api/chat/message` | Send a chat message and receive A2UI card messages. |
-| `POST` | `/api/actions/{action_id}` | Run an A2UI card action. |
+| `POST` | `/api/chat/message` | Send a chat message and receive Qwen-style agent messages. |
+| `POST` | `/api/actions/{action_id}` | Run an agent card action. |
 | `GET` | `/api/conversations/{conversation_id}` | Read conversation history and workflow state. |
 | `GET` | `/api/loan/products` | List mock loan products. |
 | `POST` | `/api/loan/pre-assess` | Run mock credit pre-assessment. |
@@ -148,7 +147,7 @@ For the full API schema, run the backend and open `http://127.0.0.1:8001/docs`.
 ```text
 LoanPilot/
   backend/                 FastAPI API, domain models, Dify mock services, tests
-  frontend/                React + Vite app and custom A2UI catalog
+  frontend/                React + Vite app and business card renderers
   docs/                    Architecture, product demo, security and development notes
   examples/                Request examples and integration snippets
   .github/                 CI configuration, issue templates, PR template
@@ -201,7 +200,7 @@ Do not use the demo mock adapter for production lending decisions.
 ## Roadmap
 
 - Add typed API clients for frontend-to-backend contracts.
-- Add Playwright smoke tests for A2UI card interactions.
+- Add Playwright smoke tests for agent card interactions.
 - Add optional Docker Compose development environment.
 - Replace MockDifyClient with a real Dify API client.
 - Add adapter examples for bank product, document, and repayment systems.
@@ -216,7 +215,6 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE).
 
 ## Acknowledgements
 
-- [A2UI](https://a2ui.org/) for the declarative agent UI protocol and React renderer.
 - [FastAPI](https://fastapi.tiangolo.com/) for the backend framework.
 - [React](https://react.dev/) and [Vite](https://vite.dev/) for the frontend development stack.
 - [SQLAlchemy](https://www.sqlalchemy.org/) for the ORM layer.

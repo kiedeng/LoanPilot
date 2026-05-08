@@ -65,14 +65,14 @@ Prefer concise, imperative commit messages:
 ```text
 Add repayment schedule card
 Fix local CORS origin matching
-Document A2UI catalog architecture
+Document agent message card architecture
 ```
 
 For larger changes, use a prefix:
 
 ```text
 feat: add application checklist card
-fix: dispatch custom A2UI actions correctly
+fix: dispatch agent card actions correctly
 docs: expand Chinese README
 test: cover pre-assessment actions
 ```
